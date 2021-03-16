@@ -2,6 +2,7 @@
 #include <string>
 #include <android/sensor.h>
 #include <android/looper.h>
+#include <map>
 
 const char packageName[] = "com.example.jnimonitorapplication";
 const int looper = 1;
@@ -33,9 +34,11 @@ Java_com_example_jnimonitorapplication_AccelerometerActivity_accelerometerData(
     ASensorEventQueue* queue = ASensorManager_createEventQueue(
             sensorManager,
             ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS),
-            looper, NULL /* no callback */, NULL /* no data */);
+            looper, nullptr /* no callback */, nullptr /* no data */);
     if (!queue) {
         fprintf(stderr, "Failed to create a sensor event queue\n");
+        std::string message = "Failed to get sensor event queue";
+        return env->NewStringUTF(message.c_str());
     }
 
     const int numSamples = 10;
@@ -45,10 +48,9 @@ Java_com_example_jnimonitorapplication_AccelerometerActivity_accelerometerData(
 
     const ASensor* sensor = ASensorManager_getDefaultSensor(sensorManager, ASENSOR_TYPE_ACCELEROMETER);
     if (sensor && !ASensorEventQueue_enableSensor(queue, sensor)) {
-        int ident = ALooper_pollAll(timeoutMilliSecs, NULL, NULL, NULL);
-
         for (int i=0; i < numSamples; i++) {
             int ident = ALooper_pollAll(timeoutMilliSecs, NULL, NULL, NULL);
+            //if sensor has data, process it now
             if (ident == looper) {
                 if (sensor != NULL) {
                     ASensorEvent data;
@@ -59,6 +61,11 @@ Java_com_example_jnimonitorapplication_AccelerometerActivity_accelerometerData(
                 }
             }
         }
+    }
+
+    int ret = ASensorManager_destroyEventQueue(sensorManager, queue);
+    if (ret) {
+        fprintf(stderr, "Failed to destroy event queue: %s\n", strerror(ret));
     }
 
 }
